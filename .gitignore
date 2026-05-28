@@ -1,0 +1,8 @@
+# vendor
+/vendor
+
+# git
+.git
+
+# swap files
+*.swp

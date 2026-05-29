@@ -1,7 +1,21 @@
-package main
+package model
 
-import "math/rand/v2"
+import (
+	"math/rand/v2"
+	"time"
+)
 
+func (s *Simulation) Run() {
+	for {
+		// s.Tick()
+		s.SpawnCars()
+		s.UpdateTrafficLights()
+		// s.MoveCars()
+		// s.ResolveCollision()
+		// s.Render()
+		time.Sleep(100 * time.Millisecond)
+	}
+}
 func (s *Simulation) SpawnCars() {
 	for _, lane := range s.Lanes {
 

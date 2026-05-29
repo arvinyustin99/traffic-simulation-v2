@@ -1,4 +1,4 @@
-package main
+package model
 
 func (tl *TrafficLight) Update() {
 	tl.ElapsedTicks++

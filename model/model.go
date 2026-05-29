@@ -2,14 +2,6 @@ package model
 
 import "github.com/shopspring/decimal"
 
-type Car struct {
-	ID           int
-	Position     int
-	Speed        int
-	DesiredSpeed int
-	Lane         int
-}
-
 type Lane struct {
 	ID         int
 	Cars       []*Car // Rotating array to avoid reallocating

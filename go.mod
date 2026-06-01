@@ -1,4 +1,4 @@
-module github.com/arvinyustin99
+module github.com/arvinyustin99/traffic-simulation-v2
 
 go 1.23.5
 

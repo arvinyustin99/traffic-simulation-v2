@@ -1,5 +1,11 @@
 package model
 
+func (s *Simulation) UpdateTrafficLights() {
+	for _, intersection := range s.Intersections {
+		intersection.TrafficLight.Update()
+	}
+}
+
 func (tl *TrafficLight) Update() {
 	tl.ElapsedTicks++
 

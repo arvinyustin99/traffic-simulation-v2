@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"time"
 
@@ -9,7 +8,7 @@ import (
 )
 
 func NewSimulation() *Simulation {
-	lane_WE := &Lane{
+	lane_WE_00 := &Lane{
 		ID:         0,
 		Cars:       make([]*Car, 0),
 		AllowSpawn: true,
@@ -17,29 +16,40 @@ func NewSimulation() *Simulation {
 		MaxSpeed:   2,
 		Direction:  Eastbound,
 	}
-	lane_EW := &Lane{
+	lane_WE_01 := &Lane{
 		ID:         1,
 		Cars:       make([]*Car, 0),
 		AllowSpawn: true,
 		SpawnRate:  decimal.NewFromFloat(0.1),
+		MaxSpeed:   2,
+		Direction:  Eastbound,
+	}
+	lane_EW_00 := &Lane{
+		ID:         2,
+		Cars:       make([]*Car, 0),
+		AllowSpawn: true,
+		SpawnRate:  decimal.NewFromFloat(0.2),
 		MaxSpeed:   1,
-		Direction:  Westbound,
+		Direction:  Eastbound,
 	}
 	intersection_01 := NewIntersection()
-	intersection_01.RegisterLane(lane_WE, true)
-	intersection_01.RegisterLane(lane_EW, false)
+	intersection_01.RegisterLane(lane_WE_00, true)
+	intersection_01.RegisterLane(lane_WE_01, true)
+	intersection_01.RegisterLane(lane_EW_00, false)
 
 	return &Simulation{
-		TickRate: 2000 * time.Millisecond,
+		TickRate: 1000 * time.Millisecond,
 		Running:  false,
-		Cars:     make([]*Car, 0),
+		Cars:     make([]*Car, 0, 2), // Preallocate capacity to match MaxCars
 		Lanes: []*Lane{
-			lane_WE, lane_EW,
+			lane_WE_00,
+			lane_WE_01,
+			lane_EW_00,
 		},
 		Intersections: []*Intersection{
 			intersection_01,
 		},
-		MaxCars:      2,
+		MaxCars:      20,
 		SafeDistance: 2,
 		EventBus:     NewEventBus(),
 		Metrics:      NewMetrics(),
@@ -66,6 +76,7 @@ func (s *Simulation) Step() {
 	s.ComputeCarIntentions()
 	s.ApplySpeedAdjustments()
 	s.MoveCars()
+	s.CleanUpOffscreenCars()
 	s.ResolveIntersectionCrossing()
 	// s.DetectCongestion()
 	// s.CollectMetrics()
@@ -73,7 +84,7 @@ func (s *Simulation) Step() {
 	s.Render()
 }
 func (s *Simulation) SpawnCars() {
-	if len(s.Cars) == s.MaxCars {
+	if len(s.Cars) >= s.MaxCars {
 		return
 	}
 	for _, lane := range s.Lanes {
@@ -84,10 +95,24 @@ func (s *Simulation) SpawnCars() {
 
 		random := rand.Float64()
 		if random < lane.SpawnRate.InexactFloat64() {
+			var (
+				startPosition int = 0
+			)
+			switch lane.Direction {
+			case Eastbound:
+				startPosition = 0
+			case Westbound:
+				startPosition = s.Renderer.(*TerminalRenderer).Width
+			case Northbound:
+				startPosition = 0
+			case Southbound:
+				startPosition = s.Renderer.(*TerminalRenderer).Height
+			}
 			newCar := Car{
 				ID:           len(s.Cars) + 1,
-				Position:     0,
+				Position:     startPosition,
 				Speed:        0,
+				SafeDistance: s.SafeDistance,
 				DesiredSpeed: lane.MaxSpeed,
 				Lane:         lane.ID,
 			}
@@ -98,8 +123,8 @@ func (s *Simulation) SpawnCars() {
 }
 
 func (s *Simulation) EmitEvents() {
-	events := s.EventBus.Flush()
-	for _, e := range events {
-		fmt.Println(e)
-	}
+	// events := s.EventBus.Flush()
+	// for _, e := range events {
+	// 	fmt.Println(e)
+	// }
 }

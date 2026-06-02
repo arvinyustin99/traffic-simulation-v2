@@ -27,6 +27,7 @@ func NewTerminalRenderer() *TerminalRenderer {
 }
 
 func (tr *TerminalRenderer) Render(sim *Simulation) {
+	fmt.Print("\033[2J")
 	// Move cursor to top-left
 	fmt.Print("\033[H")
 
@@ -40,7 +41,7 @@ func (tr *TerminalRenderer) Render(sim *Simulation) {
 func (tr *TerminalRenderer) RenderHeader(sim *Simulation) {
 	fmt.Printf("Traffic Simulation v1.0\n")
 	fmt.Printf("Tick: %d\n", sim.Tick)
-	fmt.Printf("Cars: %d\n", len(sim.Cars))
+	fmt.Printf("Cars: %d\n", sim.CountActiveCars())
 }
 
 func (tr *TerminalRenderer) RenderIntersection(sim *Simulation) {
@@ -96,9 +97,9 @@ func (tr *TerminalRenderer) RenderLanes(sim *Simulation) {
 }
 func (tr *TerminalRenderer) SpeedSymbol(speed int) rune {
 	switch {
-	case speed < 20:
+	case speed < 1:
 		return 'S'
-	case speed < 40:
+	case speed < 2:
 		return 'M'
 	default:
 		return 'F'

@@ -2,7 +2,7 @@ package model
 
 import "sort"
 
-// BuildSpatialIndex builds a spatial index for cars (sorted by position ascending)
+// BuildSpatialIndex bu ilds a spatial index for cars (sorted by position ascending)
 func (s *Simulation) BuildSpatialIndex() {
 	// Reset lane.Cars to rebuild from current s.Cars state (supports lane changes)
 	for _, lane := range s.Lanes {
@@ -126,4 +126,77 @@ func (s *Simulation) FindFrontCar(car *Car) *Car {
 		}
 	}
 	return nil
+}
+
+// CleanUpOffscreenCars removes cars that have moved beyond the viewport boundaries
+func (s *Simulation) CleanUpOffscreenCars() {
+	var width, height int = 60, 30 // default fallbacks
+	if tr, ok := s.Renderer.(*TerminalRenderer); ok {
+		width = tr.Width
+		height = tr.Height
+	}
+
+	// Filter s.Cars in-place to avoid reallocating
+	n := 0
+	for _, car := range s.Cars {
+		var laneLimit int
+		var carLane *Lane
+		for _, l := range s.Lanes {
+			if l.ID == car.Lane {
+				carLane = l
+				break
+			}
+		}
+
+		if carLane != nil && (carLane.Direction == Northbound || carLane.Direction == Southbound) {
+			laneLimit = height
+		} else {
+			laneLimit = width
+		}
+
+		if car.Position < laneLimit {
+			s.Cars[n] = car
+			n++
+		}
+	}
+	// Zero out remaining pointers to avoid memory leak
+	for i := n; i < len(s.Cars); i++ {
+		s.Cars[i] = nil
+	}
+	s.Cars = s.Cars[:n]
+
+	// Also filter each lane's Cars in-place
+	for _, lane := range s.Lanes {
+		var laneLimit int
+		if lane.Direction == Northbound || lane.Direction == Southbound {
+			laneLimit = height
+		} else {
+			laneLimit = width
+		}
+
+		m := 0
+		for _, car := range lane.Cars {
+			if car.Position < laneLimit {
+				lane.Cars[m] = car
+				m++
+			}
+		}
+		// Zero out remaining pointers to avoid memory leak
+		for i := m; i < len(lane.Cars); i++ {
+			lane.Cars[i] = nil
+		}
+		lane.Cars = lane.Cars[:m]
+	}
+}
+
+func (s *Simulation) CountActiveCars() int {
+	var (
+		count int = 0
+	)
+	for _, car := range s.Cars {
+		if car != nil {
+			count++
+		}
+	}
+	return count
 }

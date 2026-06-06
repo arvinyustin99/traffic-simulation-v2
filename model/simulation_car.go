@@ -2,13 +2,16 @@ package model
 
 import "sort"
 
-// BuildSpatialIndex bu ilds a spatial index for cars (sorted by position ascending)
+// BuildSpatialIndex builds a spatial index for cars (sorted by position ascending or descending based on direction)
 func (s *Simulation) BuildSpatialIndex() {
 	// Reset lane.Cars to rebuild from current s.Cars state (supports lane changes)
 	for _, lane := range s.Lanes {
 		lane.Cars = []*Car{}
 	}
 	for _, car := range s.Cars {
+		if car == nil {
+			continue
+		}
 		for _, lane := range s.Lanes {
 			if lane.ID == car.Lane {
 				lane.Cars = append(lane.Cars, car)
@@ -17,9 +20,17 @@ func (s *Simulation) BuildSpatialIndex() {
 		}
 	}
 	for _, lane := range s.Lanes {
-		sort.Slice(lane.Cars, func(i, j int) bool {
-			return lane.Cars[i].Position < lane.Cars[j].Position
-		})
+		if lane.Direction == Westbound || lane.Direction == Northbound {
+			// Decreasing direction: sort descending (largest position at the back/start to smallest at the front/end)
+			sort.Slice(lane.Cars, func(i, j int) bool {
+				return lane.Cars[i].Position > lane.Cars[j].Position
+			})
+		} else {
+			// Increasing direction: sort ascending (smallest position at the back/start to largest at the front/end)
+			sort.Slice(lane.Cars, func(i, j int) bool {
+				return lane.Cars[i].Position < lane.Cars[j].Position
+			})
+		}
 	}
 }
 
@@ -42,7 +53,18 @@ func (s *Simulation) ComputeCarIntentions() {
 			}
 
 			if frontCar != nil {
-				gap := frontCar.Position - car.Position
+				var gap int
+				if lane.Direction == Westbound || lane.Direction == Northbound {
+					// Decreasing position: A is behind B, so A.Position > B.Position
+					gap = car.Position - frontCar.Position
+				} else {
+					// Increasing position: A is behind B, so B.Position > A.Position
+					gap = frontCar.Position - car.Position
+				}
+				if gap < 0 {
+					gap = 0
+				}
+
 				safeDist := car.SafeDistance
 				if safeDist <= 0 {
 					safeDist = s.SafeDistance // Default fallback
@@ -114,18 +136,35 @@ func (s *Simulation) ComputeCarIntentions() {
 	}
 }
 
-// Find front car in the same lane
+// Find front car in the same lane (direction aware)
 func (s *Simulation) FindFrontCar(car *Car) *Car {
+	var frontCar *Car
 	for _, lane := range s.Lanes {
 		if lane.ID == car.Lane {
+			isDecreasing := lane.Direction == Westbound || lane.Direction == Northbound
 			for _, c := range lane.Cars {
-				if c.Position > car.Position {
-					return c
+				if c == car {
+					continue
+				}
+				if isDecreasing {
+					// Moving right to left, front car has smaller position
+					if c.Position < car.Position {
+						if frontCar == nil || c.Position > frontCar.Position {
+							frontCar = c
+						}
+					}
+				} else {
+					// Moving left to right, front car has larger position
+					if c.Position > car.Position {
+						if frontCar == nil || c.Position < frontCar.Position {
+							frontCar = c
+						}
+					}
 				}
 			}
 		}
 	}
-	return nil
+	return frontCar
 }
 
 // CleanUpOffscreenCars removes cars that have moved beyond the viewport boundaries
@@ -139,7 +178,9 @@ func (s *Simulation) CleanUpOffscreenCars() {
 	// Filter s.Cars in-place to avoid reallocating
 	n := 0
 	for _, car := range s.Cars {
-		var laneLimit int
+		if car == nil {
+			continue
+		}
 		var carLane *Lane
 		for _, l := range s.Lanes {
 			if l.ID == car.Lane {
@@ -148,13 +189,29 @@ func (s *Simulation) CleanUpOffscreenCars() {
 			}
 		}
 
-		if carLane != nil && (carLane.Direction == Northbound || carLane.Direction == Southbound) {
-			laneLimit = height
-		} else {
-			laneLimit = width
+		keep := true
+		if carLane != nil {
+			switch carLane.Direction {
+			case Eastbound:
+				if car.Position >= width {
+					keep = false
+				}
+			case Westbound:
+				if car.Position <= 0 {
+					keep = false
+				}
+			case Southbound:
+				if car.Position >= height {
+					keep = false
+				}
+			case Northbound:
+				if car.Position <= 0 {
+					keep = false
+				}
+			}
 		}
 
-		if car.Position < laneLimit {
+		if keep {
 			s.Cars[n] = car
 			n++
 		}
@@ -167,16 +224,29 @@ func (s *Simulation) CleanUpOffscreenCars() {
 
 	// Also filter each lane's Cars in-place
 	for _, lane := range s.Lanes {
-		var laneLimit int
-		if lane.Direction == Northbound || lane.Direction == Southbound {
-			laneLimit = height
-		} else {
-			laneLimit = width
-		}
-
 		m := 0
 		for _, car := range lane.Cars {
-			if car.Position < laneLimit {
+			keep := true
+			switch lane.Direction {
+			case Eastbound:
+				if car.Position >= width {
+					keep = false
+				}
+			case Westbound:
+				if car.Position <= 0 {
+					keep = false
+				}
+			case Southbound:
+				if car.Position >= height {
+					keep = false
+				}
+			case Northbound:
+				if car.Position <= 0 {
+					keep = false
+				}
+			}
+
+			if keep {
 				lane.Cars[m] = car
 				m++
 			}

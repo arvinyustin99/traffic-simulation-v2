@@ -24,17 +24,26 @@ func NewSimulation() *Simulation {
 		MaxSpeed:   2,
 		Direction:  Eastbound,
 	}
-	lane_EW_00 := &Lane{
+	lane_WE_02 := &Lane{
 		ID:         2,
 		Cars:       make([]*Car, 0),
 		AllowSpawn: true,
+		SpawnRate:  decimal.NewFromFloat(0.3),
+		MaxSpeed:   4,
+		Direction:  Eastbound,
+	}
+	lane_EW_00 := &Lane{
+		ID:         3,
+		Cars:       make([]*Car, 0),
+		AllowSpawn: false,
 		SpawnRate:  decimal.NewFromFloat(0.2),
 		MaxSpeed:   1,
-		Direction:  Eastbound,
+		Direction:  Westbound,
 	}
 	intersection_01 := NewIntersection()
 	intersection_01.RegisterLane(lane_WE_00, true)
 	intersection_01.RegisterLane(lane_WE_01, true)
+	intersection_01.RegisterLane(lane_WE_02, true)
 	intersection_01.RegisterLane(lane_EW_00, false)
 
 	return &Simulation{
@@ -44,6 +53,7 @@ func NewSimulation() *Simulation {
 		Lanes: []*Lane{
 			lane_WE_00,
 			lane_WE_01,
+			lane_WE_02,
 			lane_EW_00,
 		},
 		Intersections: []*Intersection{

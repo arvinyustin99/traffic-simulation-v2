@@ -38,8 +38,25 @@ func (s *Simulation) ApplySpeedAdjustments() {
 
 func (s *Simulation) MoveCars() {
 	for _, car := range s.Cars {
+		if car == nil {
+			continue
+		}
 		oldPos := car.Position
-		car.Position += car.Speed
+
+		// Find the lane for this car to determine direction
+		var carLane *Lane
+		for _, l := range s.Lanes {
+			if l.ID == car.Lane {
+				carLane = l
+				break
+			}
+		}
+
+		if carLane != nil && (carLane.Direction == Westbound || carLane.Direction == Northbound) {
+			car.Position -= car.Speed
+		} else {
+			car.Position += car.Speed
+		}
 
 		s.EventBus.Emit(CarMovedEvent{
 			CarID: car.ID,
